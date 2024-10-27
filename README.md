@@ -202,11 +202,12 @@ chmod +x *.sh
 
 ## License
 
-[Add your chosen license here]
+MIT
 
 ## Authors
 
-[Add author information here]
+Touseef Ahmad 👨‍💻
+Mahpara Siddique 👩‍🎤
 
 ## Acknowledgments
 
@@ -216,4 +217,4 @@ chmod +x *.sh
 
 ## Support
 
-For support, please open an issue in the repository or contact [your contact information].
+For support, please open an issue in the repository or contact +92-3403543775.
