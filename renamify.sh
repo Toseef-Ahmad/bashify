@@ -1,128 +1,257 @@
 #!/bin/bash
 
-# renamify
-echo "Welcome To Renamify"
-touch "a.txt" # No need for $()
-touch "b.txt" # No need for $()
-touch "main.sh" # Ensure main.sh exists for demonstration
+# Color codes
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
 
+# Print colored output
+print_color() {
+    case $1 in
+        "red") echo -e "${RED}$2${NC}" ;;
+        "green") echo -e "${GREEN}$2${NC}" ;;
+        "yellow") echo -e "${YELLOW}$2${NC}" ;;
+        "blue") echo -e "${BLUE}$2${NC}" ;;
+    esac
+}
+
+# Show banner
+show_banner() {
+    print_color "blue" "================================"
+    print_color "blue" "          RENAMIFY v2.0         "
+    print_color "blue" "   Batch File Renaming Utility  "
+    print_color "blue" "================================"
+}
+
+# Function to check if directory exists and is writable
+check_directory() {
+    local dir=$1
+    if [ ! -d "$dir" ]; then
+        print_color "red" "Error: Directory '$dir' does not exist."
+        return 1
+    elif [ ! -w "$dir" ]; then
+        print_color "red" "Error: Directory '$dir' is not writable."
+        return 1
+    fi
+    return 0
+}
+
+# Function for sequential renaming
 rename_files() {
-    target_files=$1       # File extension, e.g., .txt
-    new_name=$2           # Base name for new files
-    target_directory=$3   # Directory to search for files
-    echo $target_files
-    echo $new_name
-    echo $target_directory
-    # Check if target directory exists
-    if [ ! -d "$target_directory" ]; then
-        echo "Error: Directory '$target_directory' does not exist."
-        return 1
-    fi
+    local target_files=$1
+    local new_name=$2
+    local target_directory=$3
+    local start_number=${4:-1}
+    local padding=${5:-1}
 
-    # Enable nullglob to handle no matches correctly
+    check_directory "$target_directory" || return 1
+
     shopt -s nullglob
     files=("$target_directory"/*"$target_files")
     shopt -u nullglob
 
-    # Check if any files matched
     if [ ${#files[@]} -eq 0 ]; then
-        echo "No files matching the pattern '$target_directory/*$target_files'."
+        print_color "yellow" "No files matching the pattern '$target_directory/*$target_files'."
         return 1
     fi
 
-    counter=1
+    print_color "blue" "\nPreviewing changes:"
+    counter=$start_number
     for i in "${files[@]}"; do
-        if [ -f "$i" ]; then  # Check if it's a regular file
-            base_file=$(basename "$i")  # Extract just the file name without the path
-            new_file="${target_directory}/${new_name}_${counter}${target_files}"
+        if [ -f "$i" ]; then
+            base_file=$(basename "$i")
+            padded_number=$(printf "%0${padding}d" $counter)
+            new_file="${target_directory}/${new_name}_${padded_number}${target_files}"
+            echo "🔄 '$base_file' → '$(basename "$new_file")'"
+            ((counter++))
+        fi
+    done
+
+    read -p "Proceed with renaming? (y/n): " confirm
+    if [[ $confirm != [yY] ]]; then
+        print_color "yellow" "Operation cancelled."
+        return 0
+    fi
+
+    counter=$start_number
+    for i in "${files[@]}"; do
+        if [ -f "$i" ]; then
+            base_file=$(basename "$i")
+            padded_number=$(printf "%0${padding}d" $counter)
+            new_file="${target_directory}/${new_name}_${padded_number}${target_files}"
             mv "$i" "$new_file"
-            echo "Renaming '$base_file' to '$(basename "$new_file")'"
-            ((counter++))  # Increment counter for each file
-        else
-            echo "Skipping '$i': Not a regular file."
+            print_color "green" "✓ Renamed '$base_file' to '$(basename "$new_file")'"
+            ((counter++))
         fi
     done
 }
 
+# Function to add prefix/suffix
 add_text_in_name() {
-    target_files=$1       # File extension, e.g., .txt
-    new_name=$2           # Text to be added to the new file names
-    target_directory=$3   # Directory to search for files
+    local target_files=$1
+    local new_text=$2
+    local target_directory=$3
+    local position=$4  # prefix or suffix
 
-    # Check if target directory exists
-    if [ ! -d "$target_directory" ]; then
-        echo "Error: Directory '$target_directory' does not exist."
-        return 1
-    fi
+    check_directory "$target_directory" || return 1
 
-    # Enable nullglob to handle no matches correctly
     shopt -s nullglob
     files=("$target_directory"/*"$target_files")
     shopt -u nullglob
 
-    # Check if any files matched
     if [ ${#files[@]} -eq 0 ]; then
-        echo "No files matching the pattern '$target_directory/*$target_files'."
+        print_color "yellow" "No files matching the pattern '$target_directory/*$target_files'."
         return 1
+    }
+
+    print_color "blue" "\nPreviewing changes:"
+    for i in "${files[@]}"; do
+        if [ -f "$i" ]; then
+            base_file=$(basename "$i")
+            filename="${base_file%.*}"
+            extension="${base_file##*.}"
+            
+            if [ "$position" = "prefix" ]; then
+                new_file="${target_directory}/${new_text}_${filename}.${extension}"
+            else
+                new_file="${target_directory}/${filename}_${new_text}.${extension}"
+            fi
+            echo "🔄 '$base_file' → '$(basename "$new_file")'"
+        fi
+    done
+
+    read -p "Proceed with renaming? (y/n): " confirm
+    if [[ $confirm != [yY] ]]; then
+        print_color "yellow" "Operation cancelled."
+        return 0
     fi
 
     for i in "${files[@]}"; do
-        if [ -f "$i" ]; then  # Check if it's a regular file
-            base_file=$(basename "$i")  # Extract just the file name without the path
-            new_file="${target_directory}/${new_name}_${base_file}"  # Add new name before the original file name
-            mv "$i" "$new_file"  # Rename the file
-            echo "Renaming '$base_file' to '$(basename "$new_file")'"
-        else
-            echo "Skipping '$i': Not a regular file."
+        if [ -f "$i" ]; then
+            base_file=$(basename "$i")
+            filename="${base_file%.*}"
+            extension="${base_file##*.}"
+            
+            if [ "$position" = "prefix" ]; then
+                new_file="${target_directory}/${new_text}_${filename}.${extension}"
+            else
+                new_file="${target_directory}/${filename}_${new_text}.${extension}"
+            fi
+            mv "$i" "$new_file"
+            print_color "green" "✓ Renamed '$base_file' to '$(basename "$new_file")'"
         fi
     done
 }
 
-# Menu for user
-echo "Please choose an option:"
-echo "1. Rename files"
-echo "2. Add text to file names"
+# Function to replace text in filenames
+replace_text() {
+    local target_files=$1
+    local search_text=$2
+    local replace_text=$3
+    local target_directory=$4
 
-read -p "Enter your choice (1 or 2): " user_choice
+    check_directory "$target_directory" || return 1
 
-# Handle user choice
-case "$user_choice" in
-    1)
-        read -p "Enter file extension (e.g., .txt): " file_extension
-        # Ensure the file extension starts with a dot
-        if [[ "$file_extension" != .* ]]; then
-            echo "Error: File extension should start with a dot (e.g., .txt)."
-            exit 1
-        fi
-        read -p "Enter new base name (without quotes): " new_name
-        # Validate new_name (no spaces, no special characters)
-        if [[ -z "$new_name" ]]; then
-            echo "Error: New base name cannot be empty."
-            exit 1
-        fi
-        read -p "Enter target directory: " target_directory
-        rename_files "$file_extension" "$new_name" "$target_directory"
-        ;;
-    2)
-        read -p "Enter file extension (e.g., .txt): " file_extension
-        # Ensure the file extension starts with a dot
-        if [[ "$file_extension" != .* ]]; then
-            echo "Error: File extension should start with a dot (e.g., .txt)."
-            exit 1
-        fi
-        read -p "Enter text to add to file names (without quotes): " new_name
-        # Validate new_name (no spaces, no special characters)
-        if [[ -z "$new_name" ]]; then
-            echo "Error: Text to add cannot be empty."
-            exit 1
-        fi
-        read -p "Enter target directory: " target_directory
-        add_text_in_name "$file_extension" "$new_name" "$target_directory"
-        ;;
-    *)
-        echo "Invalid choice. Please run the script again and choose 1 or 2."
-        exit 1
-        ;;
-esac
+    shopt -s nullglob
+    files=("$target_directory"/*"$target_files")
+    shopt -u nullglob
 
-echo "Updated files:"
+    if [ ${#files[@]} -eq 0 ]; then
+        print_color "yellow" "No files matching the pattern '$target_directory/*$target_files'."
+        return 1
+    fi
+
+    print_color "blue" "\nPreviewing changes:"
+    for i in "${files[@]}"; do
+        if [ -f "$i" ]; then
+            base_file=$(basename "$i")
+            new_name="${base_file//$search_text/$replace_text}"
+            new_file="${target_directory}/${new_name}"
+            echo "🔄 '$base_file' → '$new_name'"
+        fi
+    done
+
+    read -p "Proceed with renaming? (y/n): " confirm
+    if [[ $confirm != [yY] ]]; then
+        print_color "yellow" "Operation cancelled."
+        return 0
+    fi
+
+    for i in "${files[@]}"; do
+        if [ -f "$i" ]; then
+            base_file=$(basename "$i")
+            new_name="${base_file//$search_text/$replace_text}"
+            new_file="${target_directory}/${new_name}"
+            mv "$i" "$new_file"
+            print_color "green" "✓ Renamed '$base_file' to '$new_name'"
+        fi
+    done
+}
+
+# Show menu
+show_menu() {
+    echo -e "\nPlease choose an option:"
+    echo "1. Sequential renaming (file_001.txt, file_002.txt...)"
+    echo "2. Add prefix to filenames"
+    echo "3. Add suffix to filenames"
+    echo "4. Replace text in filenames"
+    echo "5. Exit"
+}
+
+# Main execution
+show_banner
+
+while true; do
+    show_menu
+    read -p "Enter your choice (1-5): " user_choice
+
+    case "$user_choice" in
+        1)
+            read -p "Enter file extension (e.g., .txt): " file_extension
+            [[ "$file_extension" != .* ]] && { print_color "red" "Error: File extension should start with a dot."; continue; }
+            
+            read -p "Enter new base name: " new_name
+            [[ -z "$new_name" ]] && { print_color "red" "Error: Base name cannot be empty."; continue; }
+            
+            read -p "Enter target directory: " target_directory
+            read -p "Enter starting number [1]: " start_number
+            start_number=${start_number:-1}
+            
+            read -p "Enter number padding (e.g., 3 for 001) [1]: " padding
+            padding=${padding:-1}
+            
+            rename_files "$file_extension" "$new_name" "$target_directory" "$start_number" "$padding"
+            ;;
+        2|3)
+            read -p "Enter file extension (e.g., .txt): " file_extension
+            [[ "$file_extension" != .* ]] && { print_color "red" "Error: File extension should start with a dot."; continue; }
+            
+            read -p "Enter text to add: " new_text
+            [[ -z "$new_text" ]] && { print_color "red" "Error: Text cannot be empty."; continue; }
+            
+            read -p "Enter target directory: " target_directory
+            position=$([[ $user_choice -eq 2 ]] && echo "prefix" || echo "suffix")
+            
+            add_text_in_name "$file_extension" "$new_text" "$target_directory" "$position"
+            ;;
+        4)
+            read -p "Enter file extension (e.g., .txt): " file_extension
+            [[ "$file_extension" != .* ]] && { print_color "red" "Error: File extension should start with a dot."; continue; }
+            
+            read -p "Enter text to search for: " search_text
+            read -p "Enter text to replace with: " replace_text
+            read -p "Enter target directory: " target_directory
+            
+            replace_text "$file_extension" "$search_text" "$replace_text" "$target_directory"
+            ;;
+        5)
+            print_color "green" "Thank you for using Renamify!"
+            exit 0
+            ;;
+        *)
+            print_color "red" "Invalid choice. Please try again."
+            ;;
+    esac
+done
