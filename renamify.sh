@@ -64,7 +64,7 @@ rename_files() {
             base_file=$(basename "$i")
             padded_number=$(printf "%0${padding}d" $counter)
             new_file="${target_directory}/${new_name}_${padded_number}${target_files}"
-            echo "🔄 '$base_file' → '$(basename "$new_file")'"
+            echo "'$base_file' → '$(basename "$new_file")'"
             ((counter++))
         fi
     done
@@ -93,7 +93,7 @@ add_text_in_name() {
     local target_files=$1
     local new_text=$2
     local target_directory=$3
-    local position=$4  # prefix or suffix
+    local position=$4
 
     check_directory "$target_directory" || return 1
 
@@ -104,7 +104,7 @@ add_text_in_name() {
     if [ ${#files[@]} -eq 0 ]; then
         print_color "yellow" "No files matching the pattern '$target_directory/*$target_files'."
         return 1
-    }
+    fi
 
     print_color "blue" "\nPreviewing changes:"
     for i in "${files[@]}"; do
@@ -118,7 +118,7 @@ add_text_in_name() {
             else
                 new_file="${target_directory}/${filename}_${new_text}.${extension}"
             fi
-            echo "🔄 '$base_file' → '$(basename "$new_file")'"
+            echo "'$base_file' → '$(basename "$new_file")'"
         fi
     done
 
@@ -141,51 +141,6 @@ add_text_in_name() {
             fi
             mv "$i" "$new_file"
             print_color "green" "✓ Renamed '$base_file' to '$(basename "$new_file")'"
-        fi
-    done
-}
-
-# Function to replace text in filenames
-replace_text() {
-    local target_files=$1
-    local search_text=$2
-    local replace_text=$3
-    local target_directory=$4
-
-    check_directory "$target_directory" || return 1
-
-    shopt -s nullglob
-    files=("$target_directory"/*"$target_files")
-    shopt -u nullglob
-
-    if [ ${#files[@]} -eq 0 ]; then
-        print_color "yellow" "No files matching the pattern '$target_directory/*$target_files'."
-        return 1
-    fi
-
-    print_color "blue" "\nPreviewing changes:"
-    for i in "${files[@]}"; do
-        if [ -f "$i" ]; then
-            base_file=$(basename "$i")
-            new_name="${base_file//$search_text/$replace_text}"
-            new_file="${target_directory}/${new_name}"
-            echo "🔄 '$base_file' → '$new_name'"
-        fi
-    done
-
-    read -p "Proceed with renaming? (y/n): " confirm
-    if [[ $confirm != [yY] ]]; then
-        print_color "yellow" "Operation cancelled."
-        return 0
-    fi
-
-    for i in "${files[@]}"; do
-        if [ -f "$i" ]; then
-            base_file=$(basename "$i")
-            new_name="${base_file//$search_text/$replace_text}"
-            new_file="${target_directory}/${new_name}"
-            mv "$i" "$new_file"
-            print_color "green" "✓ Renamed '$base_file' to '$new_name'"
         fi
     done
 }
@@ -232,7 +187,7 @@ while true; do
             [[ -z "$new_text" ]] && { print_color "red" "Error: Text cannot be empty."; continue; }
             
             read -p "Enter target directory: " target_directory
-            position=$([[ $user_choice -eq 2 ]] && echo "prefix" || echo "suffix")
+            position=$([[ "$user_choice" == "2" ]] && echo "prefix" || echo "suffix")
             
             add_text_in_name "$file_extension" "$new_text" "$target_directory" "$position"
             ;;
@@ -255,3 +210,4 @@ while true; do
             ;;
     esac
 done
+
